@@ -130,7 +130,7 @@ async function initLiff() {
 
   // Check if registered
   try {
-    const res = await fetch(`${WEB_APP_URL}?action=getEmployee&lineUserId=${lineProfile.userId}`);
+    const res = await fetch(`${WEB_APP_URL}?action=getEmployee&lineUserId=${lineProfile.userId}`, {redirect: "follow"});
     const data = await res.json();
     if (!data.success || !data.employee) {
       document.getElementById('registerSection').style.display = 'block';
@@ -154,7 +154,7 @@ async function initLiff() {
 
 async function loadBalance() {
   try {
-    const res = await fetch(`${WEB_APP_URL}?action=getBalance&lineUserId=${lineProfile.userId}`);
+    const res = await fetch(`${WEB_APP_URL}?action=getBalance&lineUserId=${lineProfile.userId}`, {redirect: "follow"});
     const data = await res.json();
     if (data.balance) {
       const b = data.balance;
@@ -189,7 +189,7 @@ async function submitRegister() {
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
   try {
     const res = await fetch(WEB_APP_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'}, redirect:'follow',
       body: JSON.stringify({ action:'register', lineUserId:lineProfile.userId,
         displayName: nickname, department: dept, position, approverLineUserId: approver }),
     });
@@ -214,7 +214,7 @@ async function submitLeave() {
   const fmt = d => d.split('-').reverse().join('/');
   try {
     const res = await fetch(WEB_APP_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'}, redirect:'follow',
       body: JSON.stringify({ action:'submitLeave', lineUserId:lineProfile.userId,
         leaveType, reason, startDate:fmt(startDate), endDate:fmt(endDate) }),
     });

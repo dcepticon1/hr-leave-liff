@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>อนุมัติใบลา</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Sarabun',sans-serif; background:#f5f7fa; }
+  .container { max-width:480px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; font-weight:700; padding:8px 0 16px; }
+  .item { background:#fff; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 1px 6px rgba(0,0,0,.07); }
+  .item-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .badge { font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; background:#e3f2fd; color:#1565c0; }
+  .name  { font-size:16px; font-weight:700; margin-bottom:4px; }
+  .detail { font-size:13px; color:#555; white-space:pre-line; margin-bottom:12px; line-height:1.6; }
+  .actions { display:flex; gap:8px; }
+  .btn { flex:1; padding:10px; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
+  .btn-ok  { background:#27AE60; color:#fff; }
+  .btn-ng  { background:#f0f0f0; color:#333; }
+  .btn:disabled { opacity:.5; }
+  .empty   { text-align:center; color:#888; padding:50px 20px; font-size:15px; }
+  .loading { text-align:center; color:#888; padding:50px; }
+  /* Reject modal */
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:99; align-items:flex-end; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:16px 16px 0 0; padding:24px; width:100%; }
+  .modal h3 { margin-bottom:12px; font-size:16px; }
+  .modal textarea { width:100%; padding:10px; border:1.5px solid #ddd; border-radius:8px; font-size:14px; resize:none; outline:none; font-family:inherit; }
+  .modal-btns { display:flex; gap:8px; margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📋 รออนุมัติใบลา</h1>
+  <div id="content"><p class="loading">กำลังโหลด...</p></div>
+</div>
+
+<div class="modal-bg" id="rejectModal">
+  <div class="modal">
+    <h3>❌ เหตุผลการปฏิเสธ</h3>
+    <textarea id="rejectReason" rows="3" placeholder="ระบุเหตุผล..."></textarea>
+    <div class="modal-btns">
+      <button class="btn btn-ng" style="flex:1" onclick="closeReject()">ยกเลิก</button>
+      <button class="btn btn-ok" style="flex:1" onclick="confirmReject()">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let lineProfile = null;
+let rejectTargetId = null;
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwZkIaMAfwSGDhI-DcsicZoF9GQensxcZXJ_CQmTzk6zXPAig0NWPuQ3rXG-chdYFa60Q/exec';
+const LIFF_ID = '2010331145-z7ONeBwC';
+
+async function initLiff() {
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  lineProfile = await liff.getProfile();
+  loadPending();
+}
+
+async function loadPending() {
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=getPending&lineUserId=${lineProfile.userId}`);
+    const data = await res.json();
+    const items = data.pending || [];
+    if (!items.length) {
+      document.getElementById('content').innerHTML = '<p class="empty">✅ ไม่มีรายการรออนุมัติ</p>';
+      return;
+    }
+    document.getElementById('content').innerHTML = items.map(item => `
+      <div class="item" id="item_${item.ApprovalId}">
+        <div class="item-top">
+          <span class="badge">📅 ใบลา</span>
+          <span style="font-size:11px;color:#aaa">${item.CreatedAt}</span>
+        </div>
+        <div class="name">${item.RequesterName || item.RequesterId}</div>
+        <div class="detail">${item.Detail || item.RefId}</div>
+        <div class="actions">
+          <button class="btn btn-ok" onclick="approve('${item.ApprovalId}', this)">✅ อนุมัติ</button>
+          <button class="btn btn-ng" onclick="openReject('${item.ApprovalId}')">❌ ปฏิเสธ</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('content').innerHTML = '<p style="text-align:center;color:red;padding:30px">โหลดไม่ได้ กรุณาลองใหม่</p>';
+  }
+}
+
+async function approve(approvalId, btn) {
+  btn.disabled = true; btn.textContent = 'กำลังอนุมัติ...';
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'approveFromLiff', approvalId, approverId: lineProfile.userId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('item_' + approvalId)?.remove();
+      if (!document.querySelector('.item')) {
+        document.getElementById('content').innerHTML = '<p class="empty">✅ ไม่มีรายการรออนุมัติ</p>';
+      }
+    } else { btn.disabled=false; btn.textContent='✅ อนุมัติ'; alert(data.message); }
+  } catch(e) { btn.disabled=false; btn.textContent='✅ อนุมัติ'; }
+}
+
+function openReject(id) {
+  rejectTargetId = id;
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('rejectModal').classList.add('show');
+}
+function closeReject() {
+  document.getElementById('rejectModal').classList.remove('show');
+  rejectTargetId = null;
+}
+async function confirmReject() {
+  const reason = document.getElementById('rejectReason').value.trim();
+  if (!reason) { alert('กรุณาระบุเหตุผลครับ'); return; }
+  closeReject();
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'rejectFromLiff', approvalId: rejectTargetId, approverId: lineProfile.userId, reason }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('item_' + rejectTargetId)?.remove();
+      if (!document.querySelector('.item')) {
+        document.getElementById('content').innerHTML = '<p class="empty">✅ ไม่มีรายการรออนุมัติ</p>';
+      }
+    }
+  } catch(e) {}
+}
+
+initLiff();
+</script>
+</body>
+</html>

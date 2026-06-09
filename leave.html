@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Leave</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Sarabun',sans-serif; background:#f5f7fa; min-height:100vh; }
+  .container { max-width:480px; margin:0 auto; padding:20px; }
+  .card { background:#fff; border-radius:16px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
+  h1 { font-size:22px; font-weight:700; margin-bottom:4px; }
+  .sub { font-size:14px; color:#888; margin-bottom:20px; }
+  label { display:block; font-size:14px; font-weight:600; margin-bottom:6px; color:#555; }
+  input,select,textarea { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:8px; font-size:15px; outline:none; font-family:inherit; }
+  input:focus,select:focus,textarea:focus { border-color:#2D9CDB; }
+  .form-group { margin-bottom:16px; }
+  .row2 { display:flex; gap:10px; }
+  .row2 .form-group { flex:1; }
+  .balance-row { display:flex; gap:8px; margin-bottom:20px; }
+  .bal-chip { flex:1; background:#e3f2fd; border-radius:8px; padding:10px 6px; text-align:center; }
+  .bal-chip .val { font-size:20px; font-weight:700; color:#1565c0; }
+  .bal-chip .lbl { font-size:11px; color:#555; }
+  .days-hint { font-size:12px; color:#777; margin-top:4px; }
+  .btn { width:100%; padding:14px; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:#fff; margin-top:4px; }
+  .btn-blue   { background:#2D9CDB; }
+  .btn-green  { background:#27AE60; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .msg { padding:12px; border-radius:8px; text-align:center; font-size:14px; margin-top:12px; display:none; }
+  .msg.success { background:#e6f4ea; color:#2e7d32; display:block; }
+  .msg.error   { background:#fdecea; color:#c62828; display:block; }
+  .loading { text-align:center; padding:40px; color:#888; }
+  #registerSection, #leaveSection { display:none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="loadingDiv" class="loading">กำลังโหลด...</div>
+
+  <!-- Register Section -->
+  <div id="registerSection" class="card">
+    <h1 style="color:#27AE60">📝 ลงทะเบียน</h1>
+    <p class="sub">กรอกข้อมูลเพื่อเริ่มใช้งาน</p>
+    <div class="form-group">
+      <label>ชื่อ-นามสกุล / ชื่อเล่น</label>
+      <input id="regNickname" type="text" placeholder="ชื่อที่ใช้ในระบบ">
+    </div>
+    <div class="form-group">
+      <label>แผนก</label>
+      <select id="regDept">
+        <option value="">— เลือกแผนก —</option>
+        <option>บัญชี/การเงิน</option><option>ขาย/การตลาด</option>
+        <option>คลังสินค้า</option><option>ผลิต</option>
+        <option>IT</option><option>HR</option><option>อื่นๆ</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>ตำแหน่ง</label>
+      <input id="regPosition" type="text" placeholder="เช่น หัวหน้าคลัง, พนักงาน">
+    </div>
+    <div class="form-group">
+      <label>LINE User ID ของผู้อนุมัติ (ถ้ามี)</label>
+      <input id="regApprover" type="text" placeholder="Uxxxxxxx (ว่างได้)">
+    </div>
+    <button class="btn btn-green" onclick="submitRegister()">✅ ลงทะเบียน</button>
+    <div id="regMsg" class="msg"></div>
+  </div>
+
+  <!-- Leave Section -->
+  <div id="leaveSection" class="card">
+    <h1 style="color:#2D9CDB">📅 ยื่นใบลา</h1>
+    <p class="sub" id="empName">กรุณารอสักครู่...</p>
+
+    <div class="balance-row" id="balanceRow" style="display:none">
+      <div class="bal-chip"><div class="val" id="balAnnual">-</div><div class="lbl">🏖 พักร้อน</div></div>
+      <div class="bal-chip"><div class="val" id="balSick">-</div><div class="lbl">🤒 ป่วย</div></div>
+      <div class="bal-chip"><div class="val" id="balPersonal">-</div><div class="lbl">📝 กิจ</div></div>
+    </div>
+
+    <div class="form-group">
+      <label>ประเภทการลา</label>
+      <select id="leaveType">
+        <option value="annual">🏖 ลาพักร้อน</option>
+        <option value="sick">🤒 ลาป่วย</option>
+        <option value="personal">📝 ลากิจ</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="form-group">
+        <label>วันที่เริ่ม</label>
+        <input type="date" id="startDate" onchange="calcDays()">
+      </div>
+      <div class="form-group">
+        <label>วันที่สิ้นสุด</label>
+        <input type="date" id="endDate" onchange="calcDays()">
+      </div>
+    </div>
+    <div class="days-hint" id="daysHint"></div>
+    <div class="form-group" style="margin-top:12px">
+      <label>เหตุผล</label>
+      <textarea id="reason" rows="3" placeholder="ระบุเหตุผลการลา"></textarea>
+    </div>
+    <button class="btn btn-blue" id="submitBtn" onclick="submitLeave()">📤 ส่งใบลา</button>
+    <div id="leaveMsg" class="msg"></div>
+  </div>
+</div>
+
+<script>
+let lineProfile = null;
+let currentEmployee = null;
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwZkIaMAfwSGDhI-DcsicZoF9GQensxcZXJ_CQmTzk6zXPAig0NWPuQ3rXG-chdYFa60Q/exec';
+const LIFF_ID = '2010331145-0cklW9Rs';
+
+async function initLiff() {
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  lineProfile = await liff.getProfile();
+
+  // Check page param
+  const params = new URLSearchParams(window.location.search);
+  const page = params.get('page') || 'leave';
+
+  document.getElementById('loadingDiv').style.display = 'none';
+
+  if (page === 'register') {
+    document.getElementById('registerSection').style.display = 'block';
+    return;
+  }
+
+  // Check if registered
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=getEmployee&lineUserId=${lineProfile.userId}`);
+    const data = await res.json();
+    if (!data.success || !data.employee) {
+      document.getElementById('registerSection').style.display = 'block';
+      return;
+    }
+    currentEmployee = data.employee;
+  } catch(e) {}
+
+  document.getElementById('leaveSection').style.display = 'block';
+  document.getElementById('empName').textContent = `สวัสดีครับ ${lineProfile.displayName}`;
+
+  // Set today as default start
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('startDate').value = today;
+  document.getElementById('endDate').value = today;
+  calcDays();
+
+  // Load balance
+  loadBalance();
+}
+
+async function loadBalance() {
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=getBalance&lineUserId=${lineProfile.userId}`);
+    const data = await res.json();
+    if (data.balance) {
+      const b = data.balance;
+      document.getElementById('balAnnual').textContent = b.AnnualLeave - b.AnnualUsed;
+      document.getElementById('balSick').textContent = b.SickLeave - b.SickUsed;
+      document.getElementById('balPersonal').textContent = b.PersonalLeave - b.PersonalUsed;
+      document.getElementById('balanceRow').style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+function calcDays() {
+  const s = document.getElementById('startDate').value;
+  const e = document.getElementById('endDate').value;
+  if (!s || !e) return;
+  const start = new Date(s), end = new Date(e);
+  if (start > end) { document.getElementById('daysHint').textContent = '⚠️ วันสิ้นสุดต้องหลังวันเริ่ม'; return; }
+  let days = 0;
+  const cur = new Date(start);
+  while (cur <= end) { const d = cur.getDay(); if (d!==0&&d!==6) days++; cur.setDate(cur.getDate()+1); }
+  document.getElementById('daysHint').textContent = days > 0 ? `📅 ${days} วันทำงาน` : '⚠️ ไม่มีวันทำงาน';
+}
+
+async function submitRegister() {
+  const nickname = document.getElementById('regNickname').value.trim();
+  const dept     = document.getElementById('regDept').value;
+  const position = document.getElementById('regPosition').value.trim();
+  const approver = document.getElementById('regApprover').value.trim();
+  if (!nickname || !dept || !position) { showMsg('regMsg','กรุณากรอกให้ครบครับ','error'); return; }
+
+  const btn = document.querySelector('#registerSection .btn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'register', lineUserId:lineProfile.userId,
+        displayName: nickname, department: dept, position, approverLineUserId: approver }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showMsg('regMsg','🎉 ลงทะเบียนสำเร็จ!','success');
+      setTimeout(() => liff.closeWindow(), 2000);
+    } else showMsg('regMsg', data.message||'เกิดข้อผิดพลาด','error');
+  } catch(e) { showMsg('regMsg','เชื่อมต่อไม่ได้','error'); }
+  finally { btn.disabled=false; btn.textContent='✅ ลงทะเบียน'; }
+}
+
+async function submitLeave() {
+  const leaveType = document.getElementById('leaveType').value;
+  const startDate = document.getElementById('startDate').value;
+  const endDate   = document.getElementById('endDate').value;
+  const reason    = document.getElementById('reason').value.trim();
+  if (!startDate || !endDate) { showMsg('leaveMsg','กรุณาเลือกวันที่','error'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='กำลังส่ง...';
+  const fmt = d => d.split('-').reverse().join('/');
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'submitLeave', lineUserId:lineProfile.userId,
+        leaveType, reason, startDate:fmt(startDate), endDate:fmt(endDate) }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showMsg('leaveMsg',`✅ ส่งใบลาสำเร็จ (${data.days} วัน) รอการอนุมัติ`,'success');
+      setTimeout(() => liff.closeWindow(), 2500);
+    } else showMsg('leaveMsg', data.message||'เกิดข้อผิดพลาด','error');
+  } catch(e) { showMsg('leaveMsg','เชื่อมต่อไม่ได้','error'); }
+  finally { btn.disabled=false; btn.textContent='📤 ส่งใบลา'; }
+}
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.className = 'msg ' + type;
+  el.textContent = text;
+}
+
+initLiff();
+</script>
+</body>
+</html>

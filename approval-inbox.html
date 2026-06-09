@@ -63,7 +63,7 @@ async function initLiff() {
 
 async function loadPending() {
   try {
-    const res = await fetch(`${WEB_APP_URL}?action=getPending&lineUserId=${lineProfile.userId}`);
+    const res = await fetch(`${WEB_APP_URL}?action=getPending&lineUserId=${encodeURIComponent(lineProfile.userId)}`);
     const data = await res.json();
     const items = data.pending || [];
     if (!items.length) {
@@ -92,10 +92,8 @@ async function loadPending() {
 async function approve(approvalId, btn) {
   btn.disabled = true; btn.textContent = 'กำลังอนุมัติ...';
   try {
-    const res = await fetch(WEB_APP_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'approveFromLiff', approvalId, approverId: lineProfile.userId }),
-    });
+    const params = new URLSearchParams({ action:'approveFromLiff', approvalId, approverId: lineProfile.userId });
+    const res = await fetch(`${WEB_APP_URL}?${params}`);
     const data = await res.json();
     if (data.success) {
       document.getElementById('item_' + approvalId)?.remove();
@@ -120,10 +118,8 @@ async function confirmReject() {
   if (!reason) { alert('กรุณาระบุเหตุผลครับ'); return; }
   closeReject();
   try {
-    const res = await fetch(WEB_APP_URL, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'rejectFromLiff', approvalId: rejectTargetId, approverId: lineProfile.userId, reason }),
-    });
+    const params = new URLSearchParams({ action:'rejectFromLiff', approvalId: rejectTargetId, approverId: lineProfile.userId, reason });
+    const res = await fetch(`${WEB_APP_URL}?${params}`);
     const data = await res.json();
     if (data.success) {
       document.getElementById('item_' + rejectTargetId)?.remove();
